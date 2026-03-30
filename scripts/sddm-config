@@ -1,0 +1,120 @@
+#!/bin/bash
+
+THEME_DIR="/usr/share/sddm/themes/silent"
+BACKGROUNDS_DIR="$THEME_DIR/backgrounds"
+CONFIG_FILE="$THEME_DIR/metadata.desktop"
+
+# Menú principal
+OPTION=$(zenity --list \
+    --title="🎨 SilentSDDM Config" \
+    --text="¿Qué quieres configurar?" \
+    --column="Opción" \
+    "🖼️  Cambiar fondo" \
+    "👤  Cambiar avatar de usuario" \
+    --height=200 \
+    2>/dev/null)
+
+if [ -z "$OPTION" ]; then
+    exit 0
+fi
+
+# ─────────────────────────────────────────
+# CAMBIAR FONDO
+# ─────────────────────────────────────────
+if [[ "$OPTION" == *"fondo"* ]]; then
+
+    # Listar fondos existentes + opción de agregar nuevo
+    EXISTING=$(ls "$BACKGROUNDS_DIR" | grep -E "\.(mp4|webm|gif|png|jpg|jpeg|webp)$")
+
+    SELECTED=$(zenity --list \
+        --title="Fondos disponibles" \
+        --text="Elige un fondo existente o agrega uno nuevo:" \
+        --column="Archivo" \
+        $EXISTING \
+        "➕  Agregar nuevo fondo" \
+        --height=350 \
+        2>/dev/null)
+
+    [ -z "$SELECTED" ] && exit 0
+
+    if [[ "$SELECTED" == *"Agregar"* ]]; then
+        FILE=$(zenity --file-selection \
+            --title="Elige el nuevo fondo" \
+            --file-filter="Imágenes y Videos | *.png *.jpg *.jpeg *.webp *.mp4 *.webm *.gif" \
+            --filename="/home/brixxdd/Descargas/" \
+            2>/dev/null)
+        [ -z "$FILE" ] && exit 0
+        FILENAME=$(basename "$FILE")
+        sudo cp "$FILE" "$BACKGROUNDS_DIR/$FILENAME"
+    else
+        FILENAME="$SELECTED"
+        FILE="$BACKGROUNDS_DIR/$FILENAME"
+    fi
+
+    EXT="${FILENAME##*.}"
+    EXT="${EXT,,}"
+
+    # Preview
+    zenity --question --title="Preview" --text="¿Previsualizar '$FILENAME'?" 2>/dev/null
+    if [ $? -eq 0 ]; then
+        if [[ "$EXT" == "mp4" || "$EXT" == "webm" || "$EXT" == "gif" ]]; then
+            mpv "$FILE"
+        else
+            eog "$FILE"
+        fi
+    fi
+
+    zenity --question --title="¿Aplicar?" --text="¿Usar '$FILENAME' como fondo?" 2>/dev/null
+    APPLY=$?
+    [ $APPLY -ne 0 ] && exit 0
+
+    # Detectar config activa correctamente
+    ACTIVE_CONFIG=$(grep "^ConfigFile=" "$CONFIG_FILE" | cut -d= -f2)
+    ACTIVE_CONFIG_PATH="$THEME_DIR/$ACTIVE_CONFIG"
+
+    # Cambiar fondo en el config activo
+    sudo sed -i "s|^background = .*|background = \"$FILENAME\"|g" "$ACTIVE_CONFIG_PATH"
+
+    # Si es imagen también actualizar el placeholder
+    if [[ "$EXT" != "mp4" && "$EXT" != "webm" ]]; then
+        sudo sed -i "s|^animated-background-placeholder = .*|animated-background-placeholder = $FILENAME|" "$ACTIVE_CONFIG_PATH"
+    fi
+
+    zenity --info --title="✅ Listo" --text="Fondo cambiado a '$FILENAME'." 2>/dev/null
+
+# ─────────────────────────────────────────
+# CAMBIAR AVATAR
+# ─────────────────────────────────────────
+elif [[ "$OPTION" == *"avatar"* ]]; then
+
+    USER=$(zenity --list \
+        --title="Cambiar Avatar" \
+        --text="Selecciona el usuario:" \
+        --column="Usuario" \
+        $(cat /etc/passwd | grep -E "/home" | cut -d: -f1) \
+        2>/dev/null)
+
+    [ -z "$USER" ] && exit 0
+
+    IMG=$(zenity --file-selection \
+        --title="Elige el avatar para $USER" \
+        --file-filter="Imágenes | *.png *.jpg *.jpeg *.webp" \
+        --filename="/home/brixxdd/Imágenes/" \
+        2>/dev/null)
+
+    [ -z "$IMG" ] && exit 0
+
+    zenity --question --title="Preview" --text="¿Previsualizar imagen?" 2>/dev/null
+    if [ $? -eq 0 ]; then
+        eog "$IMG"
+    fi
+
+    zenity --question --title="¿Aplicar?" --text="¿Usar esta imagen como avatar de '$USER'?" 2>/dev/null
+    APPLY=$?
+    [ $APPLY -ne 0 ] && exit 0
+
+    sudo "$THEME_DIR/change_avatar.sh" "$USER" "$IMG"
+
+    zenity --info --title="✅ Listo" --text="Avatar de '$USER' actualizado." 2>/dev/null
+
+fi
