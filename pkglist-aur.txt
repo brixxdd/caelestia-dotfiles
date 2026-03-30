@@ -1,0 +1,17 @@
+antigravity
+bauh
+blesh
+caelestia-cli-git
+caelestia-meta
+caelestia-shell-git
+google-chrome
+jmtpfs
+libcava
+postman-bin
+sddm-silent-theme
+spicetify-cli
+spicetify-marketplace-bin
+spotify
+swww
+vscodium-bin
+vscodium-bin-marketplace
