@@ -40,3 +40,6 @@ if status is-interactive
         echo -en "\e]133;A\e\\"
     end
 end
+set -gx VOLTA_HOME "$HOME/.volta"
+set -gx PATH "$VOLTA_HOME/bin" $PATH
+set -x CONTEXT7_API_KEY ctx7sk-a187972f-7414-420e-b303-b8040f4ef730
